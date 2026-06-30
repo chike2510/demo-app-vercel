@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demo App — Auth + FreeLLMAPI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #060a12;
+      --surface: #0d1421;
+      --border: #1a2235;
+      --green: #00e676;
+      --cyan: #4FC3F7;
+      --amber: #FFA94D;
+      --red: #FF3D6E;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .header h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .header p { font-size: 13px; color: var(--muted); }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tab.active {
+      background: #1a2235;
+      color: var(--text);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      margin-bottom: 16px;
+    }
+
+    .card h2 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .card .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    input, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      margin-bottom: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--cyan);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: var(--green);
+      color: #060a12;
+    }
+    .btn-primary:hover { background: #00c45e; }
+    .btn-primary:disabled { background: #1a2235; color: var(--muted); cursor: not-allowed; }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    .alert {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .alert-success { background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3); color: var(--green); }
+    .alert-error   { background: rgba(255,61,110,0.1); border: 1px solid rgba(255,61,110,0.3); color: var(--red); }
+    .alert-info    { background: rgba(79,195,247,0.1); border: 1px solid rgba(79,195,247,0.3); color: var(--cyan); }
+
+    .hidden { display: none; }
+
+    /* Chat */
+    .messages {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 200px;
+      max-height: 340px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message {
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+      max-width: 88%;
+    }
+
+    .message.user {
+      background: rgba(79,195,247,0.1);
+      border: 1px solid rgba(79,195,247,0.2);
+      color: var(--cyan);
+      align-self: flex-end;
+    }
+
+    .message.assistant {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      align-self: flex-start;
+    }
+
+    .message.system-msg {
+      background: rgba(255,169,77,0.08);
+      border: 1px solid rgba(255,169,77,0.2);
+      color: var(--amber);
+      align-self: center;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .usage-bar {
+      background: var(--bg);
+      border-radius: 6px;
+      height: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .usage-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 6px;
+      transition: width 0.3s;
+    }
+
+    .token { font-family: monospace; font-size: 11px; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; }
+
+    .user-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,230,118,0.1);
+      border: 1px solid rgba(0,230,118,0.2);
+      color: var(--green);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+    }
+
+    .rate-info {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    #panel-auth, #panel-chat { display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Auth + FreeLLMAPI Demo</h1>
+    <p>Testing account creation · login · OTP · rate limiting · AI chat</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('auth')">Auth Flow</button>
+    <button class="tab" onclick="switchTab('chat')" id="tab-chat">AI Chat</button>
+  </div>
+
+  <!-- ═══ AUTH PANEL ═══════════════════════════════════════════════════════════ -->
+  <div id="panel-auth">
+
+    <!-- Logged in state -->
+    <div class="card hidden" id="logged-in-card">
+      <div class="user-pill">
+        <span>✓</span>
+        <span id="logged-in-email">user@example.com</span>
+      </div>
+      <h2>You're in</h2>
+      <p class="subtitle">Your JWT is stored. Switch to AI Chat to test the protected endpoint.</p>
+      <div class="alert alert-info" id="token-display" style="font-family:monospace;font-size:11px;word-break:break-all;"></div>
+      <button class="btn btn-secondary" onclick="logout()">Log out</button>
+    </div>
+
+    <!-- Register -->
+    <div class="card" id="register-card">
+      <h2>Create Account</h2>
+      <p class="subtitle">Rate limited: max 3 registrations/hour per IP</p>
+      <div id="register-alert"></div>
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="you@example.com" />
+      <label>Password</label>
+      <input type="password" id="reg-password" placeholder="Min 6 characters" />
+      <button class="btn btn-primary" onclick="register()">Create Account</button>
+    </div>
+
+    <!-- OTP Verify -->
+    <div class="card hidden" id="verify-card">
+      <h2>Verify Your Email</h2>
+      <p class="subtitle">Check your terminal/console for the 6-digit code (email in production)</p>
+      <div id="verify-alert"></div>
+      <label>Verification Code</label>
+      <input type="text" id="otp-input" placeholder="Enter 6-digit code" maxlength="6" style="letter-spacing:6px;font-size:20px;text-align:center;" />
+      <button class="btn btn-primary" onclick="verifyOTP()">Verify Code</button>
+      <button class="btn btn-secondary" onclick="resendOTP()">Resend Code</button>
+    </div>
+
+    <!-- Login -->
+    <div class="card" id="login-card">
+      <h2>Login</h2>
+      <p class="subtitle">Rate limited: max 5 attempts/15min per IP</p>
+      <div id="login-alert"></div>
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@example.com" />
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="Your password" />
+      <button class="btn btn-primary" onclick="login()">Login</button>
+    </div>
+
+  </div>
+
+  <!-- ═══ AI CHAT PANEL ════════════════════════════════════════════════════════ -->
+  <div id="panel-chat" class="hidden">
+
+    <div class="card" id="chat-not-logged-in" style="text-align:center;">
+      <p style="color:var(--muted);font-size:13px;">Log in first to access the AI chat.</p>
+    </div>
+
+    <div class="card hidden" id="chat-card">
+      <h2>AI Chat via FreeLLMAPI</h2>
+      <p class="subtitle">Protected endpoint · Rate limited to 10 requests/hour per user</p>
+
+      <div class="messages" id="messages">
+        <div class="message system-msg">Chat with any model in your FreeLLMAPI fallback chain</div>
+      </div>
+
+      <div id="chat-alert"></div>
+
+      <label>Message</label>
+      <textarea id="chat-input" placeholder="Ask anything..."></textarea>
+
+      <button class="btn btn-primary" id="send-btn" onclick="sendChat()">Send</button>
+
+      <div class="rate-info" id="usage-info">Loading usage...</div>
+      <div class="usage-bar">
+        <div class="usage-fill" id="usage-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '';  // same origin
+    let token = localStorage.getItem('demo_token');
+    let currentEmail = '';
+    const messages = [];
+
+    // ─── Tab switching ────────────────────────────────────────────────────────
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (tab === 'auth') === (i === 0)));
+      document.getElementById('panel-auth').classList.toggle('hidden', tab !== 'auth');
+      document.getElementById('panel-chat').classList.toggle('hidden', tab !== 'chat');
+      if (tab === 'chat') updateChatUI();
+    }
+
+    // ─── Auth state ──────────────────────────────────────────────────────────
+    function updateAuthUI() {
+      const loggedIn = !!token;
+      document.getElementById('logged-in-card').classList.toggle('hidden', !loggedIn);
+      document.getElementById('register-card').classList.toggle('hidden', loggedIn);
+      document.getElementById('verify-card').classList.toggle('hidden', true);
+      document.getElementById('login-card').classList.toggle('hidden', loggedIn);
+      if (loggedIn) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        document.getElementById('logged-in-email').textContent = payload.email;
+        document.getElementById('token-display').textContent = 'Bearer ' + token;
+      }
+    }
+
+    function updateChatUI() {
+      const loggedIn = !!token;
+      document.getElementById('chat-not-logged-in').classList.toggle('hidden', loggedIn);
+      document.getElementById('chat-card').classList.toggle('hidden', !loggedIn);
+      if (loggedIn) loadUsage();
+    }
+
+    function logout() {
+      localStorage.removeItem('demo_token');
+      token = null;
+      messages.length = 0;
+      document.getElementById('messages').innerHTML = '<div class="message system-msg">Chat with any model in your FreeLLMAPI fallback chain</div>';
+      updateAuthUI();
+    }
+
+    // ─── Register ────────────────────────────────────────────────────────────
+    async function register() {
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      setAlert('register-alert', '');
+
+      const res = await apiFetch('/api/auth/register', 'POST', { email, password });
+      if (res.ok) {
+        currentEmail = email;
+        const otpHint = res.data.demoOtp ? ` (Demo code: <b>${res.data.demoOtp}</b>)` : '';
+        setAlert('register-alert', res.data.message + otpHint, 'success');
+        setTimeout(() => {
+          document.getElementById('register-card').classList.add('hidden');
+          document.getElementById('verify-card').classList.remove('hidden');
+          if (res.data.demoOtp) document.getElementById('otp-input').value = res.data.demoOtp;
+        }, 1200);
+      } else {
+        setAlert('register-alert', res.data.error, 'error');
+      }
+    }
+
+    // ─── OTP verify ──────────────────────────────────────────────────────────
+    async function verifyOTP() {
+      const code = document.getElementById('otp-input').value.trim();
+      setAlert('verify-alert', '');
+
+      const res = await apiFetch('/api/auth/verify', 'POST', { email: currentEmail, code });
+      if (res.ok) {
+        token = res.data.token;
+        localStorage.setItem('demo_token', token);
+        setAlert('verify-alert', res.data.message, 'success');
+        setTimeout(() => updateAuthUI(), 800);
+      } else {
+        setAlert('verify-alert', res.data.error, 'error');
+      }
+    }
+
+    async function resendOTP() {
+      const res = await apiFetch('/api/auth/resend', 'POST', { email: currentEmail });
+      const msg = res.ok && res.data.demoOtp ? `New code: ${res.data.demoOtp}` : (res.data.message || res.data.error);
+      setAlert('verify-alert', msg, res.ok ? 'info' : 'error');
+      if (res.ok && res.data.demoOtp) document.getElementById('otp-input').value = res.data.demoOtp;
+    }
+
+    // ─── Login ────────────────────────────────────────────────────────────────
+    async function login() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      setAlert('login-alert', '');
+
+      const res = await apiFetch('/api/auth/login', 'POST', { email, password });
+      if (res.ok) {
+        token = res.data.token;
+        localStorage.setItem('demo_token', token);
+        setAlert('login-alert', res.data.message, 'success');
+        setTimeout(() => updateAuthUI(), 600);
+      } else {
+        if (res.data.needsVerification) {
+          currentEmail = res.data.email;
+          setAlert('login-alert', res.data.error + ' Showing verification form...', 'error');
+          setTimeout(() => {
+            document.getElementById('login-card').classList.add('hidden');
+            document.getElementById('verify-card').classList.remove('hidden');
+          }, 1500);
+        } else {
+          const rateLimitMsg = res.status === 429 ? '\n⚠️ You\'re now rate limited — wait 15 minutes' : '';
+          setAlert('login-alert', res.data.error + rateLimitMsg, 'error');
+        }
+      }
+    }
+
+    // ─── AI Chat ─────────────────────────────────────────────────────────────
+    async function sendChat() {
+      const input = document.getElementById('chat-input');
+      const content = input.value.trim();
+      if (!content) return;
+
+      input.value = '';
+      document.getElementById('send-btn').disabled = true;
+      setAlert('chat-alert', '');
+
+      // Add user message to UI
+      messages.push({ role: 'user', content });
+      addMessageEl('user', content);
+
+      const res = await apiFetch('/api/ai/chat', 'POST', { messages, max_tokens: 500 });
+
+      if (res.ok) {
+        const reply = res.data.choices?.[0]?.message?.content || '(no response)';
+        messages.push({ role: 'assistant', content: reply });
+        addMessageEl('assistant', reply);
+        await loadUsage();
+      } else {
+        const isRateLimited = res.status === 429;
+        setAlert('chat-alert', res.data.error, 'error');
+        if (isRateLimited) {
+          addMessageEl('system-msg', '🚫 Rate limit hit — 10 requests/hour per user');
+        }
+        messages.pop(); // remove the user message since it failed
+      }
+
+      document.getElementById('send-btn').disabled = false;
+    }
+
+    function addMessageEl(role, content) {
+      const el = document.createElement('div');
+      el.className = `message ${role}`;
+      el.textContent = content;
+      const container = document.getElementById('messages');
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function loadUsage() {
+      const res = await apiFetch('/api/ai/usage', 'GET');
+      if (res.ok) {
+        const { thisHour, remaining } = res.data;
+        document.getElementById('usage-info').textContent =
+          `${thisHour.requests} / ${thisHour.limit} requests used this hour · ${remaining} remaining`;
+        document.getElementById('usage-fill').style.width = `${(thisHour.requests / thisHour.limit) * 100}%`;
+        document.getElementById('usage-fill').style.background = remaining <= 2 ? '#FF3D6E' : remaining <= 5 ? '#FFA94D' : '#00e676';
+      }
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    async function apiFetch(url, method, body) {
+      try {
+        const opts = {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const response = await fetch(url, opts);
+        const data = await response.json();
+        return { ok: response.ok, status: response.status, data };
+      } catch (err) {
+        return { ok: false, status: 0, data: { error: 'Network error — is the server running?' } };
+      }
+    }
+
+    function setAlert(id, message, type = 'error') {
+      const el = document.getElementById(id);
+      if (!message) { el.innerHTML = ''; return; }
+      el.innerHTML = `<div class="alert alert-${type}">${message.replace(/\n/g, '<br>')}</div>`;
+    }
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    updateAuthUI();
+  </script>
+</body>
+</html>
